@@ -273,7 +273,28 @@ Magpie 的账号级 `baseURL` 优先于模型地址，因此发送函数还会�
 }
 ```
 
-数值仅为配置示例，须按站点实际能力和计价填写。覆盖项只应用于 key 本来就能查询到的模型，不会凭空添加权限。全局 < 站点 < 账号元数据；筛选数组逐层替换，名称逐 ID 合并，覆盖元数据深度合并。可覆盖 `name`、`limit`、`cost`、`capabilities`、`options`、`headers`、`variants`、`release_date`、`status` 和 `serviceTiers`，但不能改模型身份、API 地址或账号凭据。`serviceTiers` 数组逐层替换。额外模型请求头仍接受保留头校验。显式协议继续使用 `modelProtocols`。
+数值仅为配置示例，须按站点实际能力和计价填写。覆盖项应用于上游列出或通过 `forceModels` 补录的模型。全局 < 站点 < 账号元数据，筛选数组逐层替换，名称逐 ID 合并，覆盖元数据深度合并。可覆盖 `name`、`limit`、`cost`、`capabilities`、`options`、`headers`、`variants`、`release_date`、`status` 和 `serviceTiers`。`serviceTiers` 数组逐层替换。账号凭据和 API 地址仍由所选账号决定，协议可用 `modelProtocols` 指定。
+
+### 补录模型和设置兼容默认值
+
+```json
+{
+  "forceModels": ["gpt-6.2-astra"],
+  "defaultReasoningEfforts": ["low", "medium", "high", "xhigh"],
+  "defaultServiceTiers": ["priority"],
+  "modelOverrides": {
+    "gpt-6.2-astra": {
+      "variants": {"low": {}, "medium": {}, "high": {}, "xhigh": {}},
+      "serviceTiers": ["priority", "ultrafast"]
+    }
+  }
+}
+```
+
+- `forceModels` 在模型目录成功刷新后补录精确的上游 ID。上游已列出的条目保留原元数据，`includeModels` 和 `excludeModels` 仍参与筛选。补录的模型使用当前账号的凭据转发，上游照常校验权限并返回自己的响应。
+- `defaultReasoningEfforts` 用于已识别的推理模型，在主清单与辅助 manifest 都没有有效等级时优先于宿主已有等级。留空配置项时沿用原回退规则，显式空数组代表回退时公布零个等级。
+- `defaultServiceTiers` 用于 Responses 和 Chat Completions，在主清单与 manifest 都缺少该字段时生效。上游显式空数组仍代表零个层级。服务层级配置声明可选能力，实际请求速度由客户端或网关选择。
+- 三个数组都支持全局、`sites[]` 和账号 `metadata` 配置，优先级从低到高，逐层替换。逐模型 `modelOverrides` 的档位声明优先于上游和兼容默认值。只需补录单个模型时，可省略两个默认值，避免影响站点中其他模型。保存后重新拉取模型。
 
 ### 在原模型上选择 Fast / Ultraspeed
 
@@ -283,7 +304,7 @@ Magpie 的账号级 `baseURL` 优先于模型地址，因此发送函数还会�
 
 若 Codex 没有显示思考等级或 `/fast`，请先更新 Magpie、重载插件并重新同步客户端模型目录，再重启 Codex。使用 `model_catalog_json` 时应检查该 JSON 中对应模型的 `supported_reasoning_levels` 和 `service_tiers`；只刷新网关模型列表未必会更新客户端正在读取的文件。快速档位来源均缺失时保持不展示；确认上游权限后可按下文显式配置，不会发送收费探测请求。
 
-模型列表只保留站点返回的真实 ID。插件把当前 key 报告的服务档位写入原模型的 `serviceTiers`，由 Magpie 提供给支持速度选择的 Agent（例如支持服务档位目录的 Codex）。不生成 `-fast` / `-ultraspeed` 模型，不更改原模型的 ID、思考等级或默认速度。显示名末尾的 `(fast)` / `（fast）`、`(ultraspeed)`、`(ultrafast)` 等速度标签会移除（包括站点、宿主缓存和自定义名称）；真实 ID 本身不清理，速度能力仅通过参数元数据声明，不根据标签推断支持。
+插件把当前 key 的服务档位写入原模型的 `serviceTiers`，由 Magpie 提供给支持速度选择的 Agent（例如支持服务档位目录的 Codex）。Fast 和 Ultraspeed 共用原模型 ID。显示名末尾的 `(fast)` / `（fast）`、`(ultraspeed)`、`(ultrafast)` 等速度标签会移除（包括站点、宿主缓存和自定义名称），实际模型 ID 保持原样。
 
 | Agent 选择 | OpenAI 兼容请求参数 | 发给上游的模型 ID |
 | --- | --- | --- |

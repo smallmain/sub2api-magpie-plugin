@@ -185,11 +185,32 @@ Without filters, every real key model remains visible, without additional speed 
 }
 ```
 
-Values are illustrative: use your site's actual capabilities and prices. Overrides apply only to models already returned for the key; they do not create permissions. Precedence is global < site < account metadata. Filter arrays replace earlier arrays, names merge per ID, and metadata overrides merge deeply. Allowed fields are `name`, `limit`, `cost`, `capabilities`, `options`, `headers`, `variants`, `release_date`, `status` and `serviceTiers`, not model identity, API routing or credentials. `serviceTiers` arrays replace earlier arrays. Model headers obey reserved-header validation. Continue using `modelProtocols` for protocol overrides.
+Use your site's actual capabilities and prices. Overrides apply to upstream models and IDs added through `forceModels`. Precedence is global < site < account metadata. Filter arrays replace earlier arrays, names merge per ID, and metadata overrides merge deeply. Allowed fields are `name`, `limit`, `cost`, `capabilities`, `options`, `headers`, `variants`, `release_date`, `status` and `serviceTiers`. `serviceTiers` arrays replace earlier arrays. The selected account supplies its credentials and API URL. Use `modelProtocols` to specify a protocol.
+
+### Add model IDs and configure capability defaults
+
+```json
+{
+  "forceModels": ["gpt-6.2-astra"],
+  "defaultReasoningEfforts": ["low", "medium", "high", "xhigh"],
+  "defaultServiceTiers": ["priority"],
+  "modelOverrides": {
+    "gpt-6.2-astra": {
+      "variants": {"low": {}, "medium": {}, "high": {}, "xhigh": {}},
+      "serviceTiers": ["priority", "ultrafast"]
+    }
+  }
+}
+```
+
+- `forceModels` adds exact upstream IDs after a successful catalog refresh. Existing entries keep their upstream metadata. `includeModels` and `excludeModels` still apply. Requests use the selected account's own credentials, and the upstream still enforces its permissions.
+- `defaultReasoningEfforts` applies to recognized reasoning models when neither discovery endpoint supplies usable levels. It takes precedence over existing host levels. Omit the option for the original fallback behavior, or use an empty array to advertise zero levels as the fallback.
+- `defaultServiceTiers` applies to Responses and Chat Completions when neither discovery endpoint supplies the field. An explicit upstream empty array still advertises zero tiers. This option advertises capabilities so the client or gateway can select a speed.
+- The three arrays can be set globally, in a `sites[]` entry, or in account `metadata`. Each layer replaces the preceding array. Per-model `modelOverrides` take precedence over discovery and defaults. Omit both defaults to target just one model. Refresh the model catalog after saving the options.
 
 ### Select Fast / Ultraspeed On The Original Model
 
-The catalog contains only real IDs returned by the site. Supported service tiers reported for the current key are attached to each original model as `serviceTiers`. Magpie can offer them to agents that understand tier catalogs, such as compatible Codex versions. No `-fast` / `-ultraspeed` models are generated, and model IDs, reasoning levels and default speeds stay unchanged. Trailing `(fast)`, `(ultraspeed)` and `(ultrafast)` display labels, including fullwidth parentheses, are removed from site, host-cached and custom names. Real IDs are never cleaned. Speed capabilities are declared only through parameter metadata, never inferred from name labels.
+Service tiers for the current key are attached to each original model as `serviceTiers`. Magpie can offer them to agents that understand tier catalogs, such as compatible Codex versions. Fast and Ultraspeed share the original model ID. Trailing `(fast)`, `(ultraspeed)` and `(ultrafast)` display labels, including fullwidth parentheses, are removed from site, host-cached and custom names. The actual IDs are preserved.
 
 | Agent selection | OpenAI-compatible request parameter | Upstream model ID |
 | --- | --- | --- |
